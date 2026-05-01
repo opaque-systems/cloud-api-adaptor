@@ -18,11 +18,11 @@ FROM $BASE_IMAGE AS base
 
 RUN echo "Installing Packages ..." \
     && dnf install -y \
-      systemd \
-      conntrack iptables iptables-legacy iptables-nft nftables iproute ethtool util-linux kmod \
-      libseccomp pigz fuse-overlayfs \
-      nfs-utils which systemd-pam \
-      bash ca-certificates curl jq procps \
+    systemd \
+    conntrack iptables iptables-legacy iptables-nft nftables iproute ethtool util-linux kmod \
+    libseccomp pigz fuse-overlayfs \
+    nfs-utils which systemd-pam \
+    bash ca-certificates curl jq procps \
     && rm -f /lib/systemd/system/multi-user.target.wants/* \
     && rm -f /etc/systemd/system/*.wants/* \
     && rm -f /lib/systemd/system/local-fs.target.wants/* \

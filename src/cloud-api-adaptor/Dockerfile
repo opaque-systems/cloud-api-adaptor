@@ -1,8 +1,9 @@
 ARG BUILD_TYPE=dev
-# quay.io/confidential-containers/golang-fedora:1.25.9-41
-ARG BUILDER_BASE=quay.io/confidential-containers/golang-fedora@sha256:ee140c59abb205d6385ef89fb0dfc5352f480435b1b58a7fa9941492904dcc07
-# registry.fedoraproject.org/fedora:41
-ARG BASE=registry.fedoraproject.org/fedora@sha256:893f7eeffce8e3e2bb2bc62786ba5603fb1e0bd6ba07091acb892266b95bafdf
+# golang:1.25.9 (based on Debian 13 trixie)
+ARG BUILDER_BASE=golang@sha256:a95d3d115ec2643a014c9539962dcecba297fb4ed5e5cbfab84cf726327e8b8c
+# debian:trixie-slim (matches golang:1.25.9 base for library compatibility)
+# Multi-arch manifest list digest supporting amd64, arm64, ppc64le,, s390x
+ARG BASE=debian@sha256:4ffb3a1511099754cddc70eb1b12e50ffdb67619aa0ab6c13fcd800a78ef7c7a
 
 # This dockerfile uses Go cross-compilation to build the binary,
 # we build on the host platform ($BUILDPLATFORM) and then copy the
@@ -12,14 +13,16 @@ ARG BASE=registry.fedoraproject.org/fedora@sha256:893f7eeffce8e3e2bb2bc62786ba56
 FROM --platform=$BUILDPLATFORM $BUILDER_BASE AS builder-release
 ARG YQ_VERSION
 RUN go install github.com/mikefarah/yq/v4@$YQ_VERSION
-RUN dnf install -y git && dnf clean all
+RUN apt-get update && apt-get install -y git && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # For `dev` builds due to CGO constraints we have to emulate the target platform
 # instead of using Go's cross-compilation
-FROM --platform=$TARGETPLATFORM $BUILDER_BASE AS builder-dev
+FROM $BUILDER_BASE AS builder-dev
 ARG YQ_VERSION
+RUN apt-get update && \
+    apt-get install -y libvirt-dev pkg-config binutils-gold && \
+    rm -rf /var/lib/apt/lists/*
 RUN go install github.com/mikefarah/yq/v4@$YQ_VERSION
-RUN dnf install -y libvirt-devel binutils-gold && dnf clean all
 
 FROM builder-${BUILD_TYPE} AS builder
 ARG RELEASE_BUILD
@@ -53,15 +56,19 @@ RUN echo "Building iptables-wrapper... " \
     && git checkout $version \
     && GOARCH=$TARGETARCH make BIN_DIR=. build
 
-FROM --platform=$TARGETPLATFORM $BASE AS base-release
+FROM $BASE AS base-release
 
-RUN dnf install -y iptables iptables-legacy iptables-nft nftables && dnf clean all
+RUN apt-get update && \
+    apt-get install -y iptables && \
+    rm -rf /var/lib/apt/lists/*
 RUN --mount=type=cache,target=/iptables,from=iptables,source=/iptables,readonly \
     cp /iptables/iptables-wrapper /usr/sbin \
     && /usr/sbin/iptables-wrapper install
 
 FROM base-release AS base-dev
-RUN dnf install -y libvirt-libs /usr/bin/ssh && dnf clean all
+RUN apt-get update && \
+    apt-get install -y libvirt0 openssh-client && \
+    rm -rf /var/lib/apt/lists/*
 
 FROM base-${BUILD_TYPE}
 COPY --from=builder /work/cloud-api-adaptor/cloud-api-adaptor /work/cloud-api-adaptor/entrypoint.sh /usr/local/bin/

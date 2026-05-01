@@ -6,6 +6,12 @@
 name: Publish pod VM Images
 on:
   workflow_dispatch:
+    inputs:
+      registry:
+        description: 'Container registry to push images to (e.g., quay.io/your-username)'
+        required: false
+        type: string
+        default: ''
 
 permissions: {}
 
@@ -15,6 +21,7 @@ jobs:
     with:
       git_ref: ${{ github.sha }}
       image_tag: ${{ github.sha }}
+      registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
     permissions:
       contents: read
       packages: write
@@ -27,6 +34,7 @@ jobs:
     with:
       git_ref: ${{ github.sha }}
       image_tag: ${{ github.sha }}
+      registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
 
     permissions:
       contents: read
@@ -39,6 +47,7 @@ jobs:
     with:
       git_ref: ${{ github.sha }}
       image_tag: ${{ github.sha }}
+      registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
     permissions:
       contents: read
       packages: write
@@ -62,6 +71,7 @@ jobs:
       image_tag: ${{ github.sha }}
       arch: ${{ matrix.arch}}
       debug: false
+      registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
     secrets:
       QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
 
@@ -81,5 +91,6 @@ jobs:
       image_tag: ${{ github.sha }}
       arch: ${{ matrix.arch}}
       debug: false
+      registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
     secrets:
       QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}

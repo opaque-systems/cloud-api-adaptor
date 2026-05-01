@@ -10,6 +10,12 @@ on:
     branches:
       - 'main'
   workflow_dispatch:
+    inputs:
+      registry:
+        description: 'Container registry to push images to (e.g., quay.io/your-username)'
+        required: false
+        type: string
+        default: ''
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -24,6 +30,7 @@ jobs:
       git_ref: ${{ github.sha }}
       dev_tags: "latest,${{ github.sha }}-dev"
       release_tags: ${{ github.sha }}
+      registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
     permissions:
       contents: read
       packages: write
@@ -35,6 +42,7 @@ jobs:
     with:
       image_tags: latest,${{ github.sha }}
       git_ref: ${{ github.sha }}
+      registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
     permissions:
       contents: read
       packages: write
@@ -46,6 +54,7 @@ jobs:
     with:
       image_tags: latest,${{ github.sha }}
       git_ref: ${{ github.sha }}
+      registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
 
     permissions:
       contents: read
@@ -58,6 +67,7 @@ jobs:
     with:
       image_tags: ${{ github.sha }},latest
       git_ref: ${{ github.sha }}
+      registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
     permissions:
       contents: read
       packages: write
