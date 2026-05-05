@@ -2,7 +2,7 @@ apiVersion: v2
 name: peerpodctrl
 description: Controller for cleaning up dangling peer pod cloud resources
 type: application
-version: 0.2.0
+version: 0.2.1
 appVersion: "v0.20.0"
 
 keywords:
