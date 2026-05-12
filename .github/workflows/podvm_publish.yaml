@@ -12,6 +12,26 @@ on:
         required: false
         type: string
         default: ''
+  workflow_call:
+    inputs:
+      git_ref:
+        description: 'Git ref to build from'
+        required: false
+        type: string
+        default: ''
+      image_tag:
+        description: 'Image tag to use'
+        required: false
+        type: string
+        default: ''
+      registry:
+        description: 'Container registry to push images to (e.g., quay.io/your-username)'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      QUAY_PASSWORD:
+        required: true
 
 permissions: {}
 
@@ -19,8 +39,8 @@ jobs:
   podvm_builder:
     uses: ./.github/workflows/podvm_builder.yaml
     with:
-      git_ref: ${{ github.sha }}
-      image_tag: ${{ github.sha }}
+      git_ref: ${{ inputs.git_ref || github.sha }}
+      image_tag: ${{ inputs.image_tag || github.sha }}
       registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
     permissions:
       contents: read
@@ -32,8 +52,8 @@ jobs:
     needs: [podvm_builder]
     uses: ./.github/workflows/podvm_binaries.yaml
     with:
-      git_ref: ${{ github.sha }}
-      image_tag: ${{ github.sha }}
+      git_ref: ${{ inputs.git_ref || github.sha }}
+      image_tag: ${{ inputs.image_tag || github.sha }}
       registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
 
     permissions:
@@ -45,8 +65,8 @@ jobs:
     needs: [podvm_binaries]
     uses: ./.github/workflows/podvm.yaml
     with:
-      git_ref: ${{ github.sha }}
-      image_tag: ${{ github.sha }}
+      git_ref: ${{ inputs.git_ref || github.sha }}
+      image_tag: ${{ inputs.image_tag || github.sha }}
       registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
     permissions:
       contents: read
@@ -67,8 +87,8 @@ jobs:
       matrix:
         arch: [amd64, s390x, arm64]
     with:
-      git_ref: ${{ github.sha }}
-      image_tag: ${{ github.sha }}
+      git_ref: ${{ inputs.git_ref || github.sha }}
+      image_tag: ${{ inputs.image_tag || github.sha }}
       arch: ${{ matrix.arch}}
       debug: false
       registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
@@ -87,8 +107,8 @@ jobs:
       matrix:
         arch: [amd64, s390x, arm64]
     with:
-      git_ref: ${{ github.sha }}
-      image_tag: ${{ github.sha }}
+      git_ref: ${{ inputs.git_ref || github.sha }}
+      image_tag: ${{ inputs.image_tag || github.sha }}
       arch: ${{ matrix.arch}}
       debug: false
       registry: ${{ inputs.registry != '' && inputs.registry || (github.repository == 'confidential-containers/cloud-api-adaptor' && 'quay.io/confidential-containers' || format('ghcr.io/{0}', github.repository_owner)) }}
