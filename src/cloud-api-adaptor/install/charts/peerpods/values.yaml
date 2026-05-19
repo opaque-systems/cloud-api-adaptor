@@ -80,7 +80,7 @@ secrets:
 # Note: libvirt/docker provider files override this with the dev image.
 image:
   name: quay.io/confidential-containers/cloud-api-adaptor
-  tag: "2d2e7c2c0736ec41c889cd98442a598b8b93bc0b"
+  tag: "latest"
 
 # imagePullSecrets attached to the cloud-api-adaptor DaemonSet pods for
 # pulling the CAA image from a private registry.
@@ -89,7 +89,7 @@ image:
 #     - name: regcred
 imagePullSecrets: []
 
-# Cloud provider: libvirt, aws, azure, gcp, ibmcloud, vsphere
+# Cloud provider: libvirt, aws, azure, byom, gcp, ibmcloud, vsphere
 provider: libvirt
 
 # Maximum number of peer pods allowed to run simultaneously
