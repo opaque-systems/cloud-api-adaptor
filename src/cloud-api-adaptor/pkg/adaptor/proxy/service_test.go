@@ -461,6 +461,32 @@ func TestProxyServiceSimpleMethods(t *testing.T) {
 	}
 }
 
+func TestSwap(t *testing.T) {
+	var inout = []struct {
+		in  string
+		out string
+	}{
+		{"something", "something@sha256:abc123"},
+		{"something:latest", "something@sha256:abc123"},
+		{"something@sha256:abc123", "something@sha256:abc123"},
+		{"something@sha256:abc456", "something@sha256:abc123"},
+
+		{"docker.io/library/something", "docker.io/library/something@sha256:abc123"},
+		{"docker.io/library/something:latest", "docker.io/library/something@sha256:abc123"},
+		{"docker.io/library/something@sha256:abc123", "docker.io/library/something@sha256:abc123"},
+		{"docker.io/library/something@sha256:abc456", "docker.io/library/something@sha256:abc123"},
+
+		{"docker.io:8888/library/something", "docker.io:8888/library/something@sha256:abc123"},
+		{"docker.io:8888/library/something:latest", "docker.io:8888/library/something@sha256:abc123"},
+		{"docker.io:8888/library/something@sha256:abc123", "docker.io:8888/library/something@sha256:abc123"},
+		{"docker.io:8888/library/something@sha256:abc456", "docker.io:8888/library/something@sha256:abc123"},
+	}
+
+	for _, tt := range inout {
+		assert.Equal(t, tt.out, swapTagForDigest(tt.in, "sha256:abc123"))
+	}
+}
+
 // setupMockAgentAndService is a helper that sets up a mock agent server and returns
 // a connected proxy service along with cleanup functions
 func setupMockAgentAndService(t *testing.T) (*proxyService, func()) {
