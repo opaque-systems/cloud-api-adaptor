@@ -26,12 +26,15 @@ type proxyService struct {
 }
 
 const (
-	defaultPauseImage     = "registry.k8s.io/pause:3.7"
-	volumeTargetPathKey   = "io.confidentialcontainers.org.peerpodvolumes.target_path"
-	imageGuestPull        = "image_guest_pull"
-	cdiAnnotationKey      = "cdi.k8s.io/peer-pods"
-	defaultCDIType        = "nvidia.com/gpu=all"
-	defaultGPUsAnnotation = "io.katacontainers.config.hypervisor.default_gpus"
+	defaultPauseImage            = "registry.k8s.io/pause:3.7"
+	kataDirectVolumesDir         = "/run/kata-containers/shared/direct-volumes"
+	volumeTargetPathKey          = "io.confidentialcontainers.org.peerpodvolumes.target_path"
+	csiPluginEscapeQualifiedName = "kubernetes.io~csi"
+	imageGuestPull               = "image_guest_pull"
+	cdiAnnotationKey             = "cdi.k8s.io/peer-pods"
+	defaultCDIType               = "nvidia.com/gpu=all"
+	defaultGPUsAnnotation        = "io.katacontainers.config.hypervisor.default_gpus"
+	imageDigestsAnnotation       = "io.katacontainers.config.image-digests"
 )
 
 func newProxyService(dialer func(context.Context) (net.Conn, error), pauseImage string) *proxyService {
@@ -248,30 +251,62 @@ func handleVirtualVolumeStorageObject(req *pb.CreateContainerRequest) (*pb.Stora
 
 // Modified kata-containers/src/runtime/virtualcontainers/kata_agent.go::handleImageGuestPullBlockVolume
 func handleImageGuestPullBlockVolume(containerAnnotations map[string]string, virtualVolumeInfo *types.KataVirtualVolume, vol *pb.Storage) (*pb.Storage, error) {
+	const ctrContainerType = "io.kubernetes.cri.container-type"
+	const crioContainerType = "io.kubernetes.cri-o.ContainerType"
+	const kubernetesCRIImageName = "io.kubernetes.cri.image-name"
+	const kubernetesCRIOImageName = "io.kubernetes.cri-o.ImageName"
+	const kubernetesCRIContainerName = "io.kubernetes.cri.container-name"
+	const kubernetesCRIOContainerName = "io.kubernetes.cri-o.ContainerName"
+
 	containerType, criContainerType := getContainerTypeforCRI(containerAnnotations)
 
-	var imageRef string
+	var imageRef, containerName string
 	if containerType == "pod_sandbox" {
 		imageRef = "pause"
 	} else {
-		const ctrContainerType = "io.kubernetes.cri.container-type"
-		const crioContainerType = "io.kubernetes.cri-o.ContainerType"
-		const kubernetesCRIImageName = "io.kubernetes.cri.image-name"
-		const kubernetesCRIOImageName = "io.kubernetes.cri-o.ImageName"
 
 		switch criContainerType {
 		case ctrContainerType:
 			imageRef = containerAnnotations[kubernetesCRIImageName]
+			containerName = containerAnnotations[kubernetesCRIContainerName]
 		case crioContainerType:
 			imageRef = containerAnnotations[kubernetesCRIOImageName]
+			containerName = containerAnnotations[kubernetesCRIOContainerName]
 		default:
 			imageRef = containerAnnotations[kubernetesCRIImageName]
+			containerName = containerAnnotations[kubernetesCRIContainerName]
 		}
 
 		if imageRef == "" {
 			return nil, fmt.Errorf("Failed to get image name from annotations")
 		}
+
+		if digestsJSON, digestsOK := containerAnnotations[imageDigestsAnnotation]; digestsOK && digestsJSON != "" && containerName != "" {
+			var digests map[string]string
+			if err := json.Unmarshal([]byte(digestsJSON), &digests); err != nil {
+				return nil, fmt.Errorf("failed to parse %s annotation: %w", imageDigestsAnnotation, err)
+			}
+
+			if digest, ok := digests[containerName]; ok && digest != "" {
+				bits := strings.Split(digest, "@")
+				if len(bits) != 2 {
+					return nil, fmt.Errorf("invalid digest format for container %s: %s", containerName, digest)
+				}
+
+				imageRef = swapTagForDigest(imageRef, bits[1])
+			}
+		}
 	}
+
+	switch criContainerType {
+	case ctrContainerType:
+		containerAnnotations[kubernetesCRIImageName] = imageRef
+	case crioContainerType:
+		containerAnnotations[kubernetesCRIOImageName] = imageRef
+	default:
+		containerAnnotations[kubernetesCRIImageName] = imageRef
+	}
+
 	virtualVolumeInfo.Source = imageRef
 
 	//merge virtualVolumeInfo.ImagePull.Metadata and container_annotations
@@ -288,6 +323,27 @@ func handleImageGuestPullBlockVolume(containerAnnotations map[string]string, vir
 	vol.Source = virtualVolumeInfo.Source
 	vol.Fstype = "overlay"
 	return vol, nil
+}
+
+// swapTagForDigest returns imageRef with any existing tag or digest replaced by
+// the supplied digest in canonical "name@digest" form. The registry portion (if
+// any) is preserved so that a host:port prefix is not mistaken for a tag.
+func swapTagForDigest(imageRef, digest string) string {
+	prefix := ""
+	namePart := imageRef
+
+	if slashIdx := strings.LastIndex(imageRef, "/"); slashIdx >= 0 {
+		prefix = imageRef[:slashIdx+1]
+		namePart = imageRef[slashIdx+1:]
+	}
+
+	if atIdx := strings.Index(namePart, "@"); atIdx >= 0 {
+		namePart = namePart[:atIdx]
+	} else if colonIdx := strings.Index(namePart, ":"); colonIdx >= 0 {
+		namePart = namePart[:colonIdx]
+	}
+
+	return prefix + namePart + "@" + digest
 }
 
 // Modified kata-containers/src/runtime/virtualcontainers/kata_agent.go::getContainerTypeforCRI
