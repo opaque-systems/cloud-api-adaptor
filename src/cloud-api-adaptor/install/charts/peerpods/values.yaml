@@ -138,17 +138,6 @@ daemonset:
   # - Keys may contain dots (.) and slashes (/)
   # - When setting via CLI, prefer --set-json or a values file (plain --set will interpret dots as map nesting)
   podLabels: {}
-  # nodeSelector constrains which nodes the CAA daemonset runs on. The
-  # daemonset only needs to land on worker nodes that will host
-  # peer-pod workloads — the kata-deploy DaemonSet uses the same
-  # label as its own selector, so the two stay aligned by default.
-  #
-  # Override to track a different worker label (e.g. legacy installs
-  # using `node.opaque.co/worker: ""`, or to scope CAA to a subset of
-  # workers like `node-role/peer-pods: "true"`). Set to {} to remove
-  # the constraint and schedule on any node.
-  nodeSelector:
-    node.kubernetes.io/worker: ""
 
   # ServiceAccount customization for the cloud-api-adaptor daemonset.
   # For example, attach a cloud workload-identity binding via
@@ -157,6 +146,21 @@ daemonset:
   # daemonset can authenticate to the cloud provider.
   serviceAccount:
     annotations: {}
+
+  # nodeSelector controls which nodes the CAA DaemonSet schedules onto.
+  # Operators must label their worker nodes to match.
+  #
+  # When unset (empty), the chart falls back to the historical default of
+  # `node.kubernetes.io/worker: ""`. Setting any non-empty value here
+  # fully replaces the default (helm map-merge would otherwise append).
+  #
+  # The default's `node.kubernetes.io/` prefix is reserved by Kubernetes
+  # and some managed Kubernetes providers (e.g. GKE) reject it on node
+  # pool configurations — meaning the label cannot be applied automatically
+  # to new nodes from autoscaling. On such providers, override with a
+  # custom label (e.g. `node.example.com/worker: ""`) that the provider
+  # will accept as a node pool label.
+  nodeSelector: {}
 
 # peerpod-ctrl subchart configuration
 # Manages lifecycle of peer pod cloud resources and cleans up dangling VMs
