@@ -145,6 +145,17 @@ daemonset:
   # - Keys may contain dots (.) and slashes (/)
   # - When setting via CLI, prefer --set-json or a values file (plain --set will interpret dots as map nesting)
   podLabels: {}
+  # nodeSelector constrains which nodes the CAA daemonset runs on. The
+  # daemonset only needs to land on worker nodes that will host
+  # peer-pod workloads — the kata-deploy DaemonSet uses the same
+  # label as its own selector, so the two stay aligned by default.
+  #
+  # Override to track a different worker label (e.g. legacy installs
+  # using `node.opaque.co/worker: ""`, or to scope CAA to a subset of
+  # workers like `node-role/peer-pods: "true"`). Set to {} to remove
+  # the constraint and schedule on any node.
+  nodeSelector:
+    node.kubernetes.io/worker: ""
 
   # ServiceAccount customization for the cloud-api-adaptor daemonset.
   # For example, attach a cloud workload-identity binding via
