@@ -154,6 +154,21 @@ daemonset:
   serviceAccount:
     annotations: {}
 
+  # nodeSelector controls which nodes the CAA DaemonSet schedules onto.
+  # Operators must label their worker nodes to match.
+  #
+  # When unset (empty), the chart falls back to the historical default of
+  # `node.kubernetes.io/worker: ""`. Setting any non-empty value here
+  # fully replaces the default (helm map-merge would otherwise append).
+  #
+  # The default's `node.kubernetes.io/` prefix is reserved by Kubernetes
+  # and some managed Kubernetes providers (e.g. GKE) reject it on node
+  # pool configurations — meaning the label cannot be applied automatically
+  # to new nodes from autoscaling. On such providers, override with a
+  # custom label (e.g. `node.example.com/worker: ""`) that the provider
+  # will accept as a node pool label.
+  nodeSelector: {}
+
 # peerpod-ctrl subchart configuration
 # Manages lifecycle of peer pod cloud resources and cleans up dangling VMs
 # Configuration options documented in ../../../peerpod-ctrl/chart/values.yaml

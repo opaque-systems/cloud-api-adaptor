@@ -116,7 +116,11 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
+        {{- if .Values.daemonset.nodeSelector }}
+        {{- toYaml .Values.daemonset.nodeSelector | nindent 8 }}
+        {{- else }}
         node.kubernetes.io/worker: ""
+        {{- end }}
       volumes:
 {{- if and (or (eq .Values.provider "libvirt") (eq .Values.provider "byom")) (include "peerpods.sshKeySecretName" .) }}
       - name: ssh
