@@ -82,8 +82,8 @@ image:
   name: quay.io/confidential-containers/cloud-api-adaptor
   tag: "latest"
 
-# imagePullSecrets attached to the cloud-api-adaptor DaemonSet pods for
-# pulling the CAA image from a private registry.
+# imagePullSecrets attached to the cloud-api-adaptor ServiceAccount, so any
+# pod using it (the CAA DaemonSet) can pull images from a private registry.
 # Example:
 #   imagePullSecrets:
 #     - name: regcred

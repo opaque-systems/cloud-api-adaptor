@@ -23,10 +23,6 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: cloud-api-adaptor
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       containers:
       - command:
         {{- toYaml .Values.daemonset.command | nindent 8 }}
