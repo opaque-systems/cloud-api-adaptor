@@ -7,8 +7,9 @@ image:
   tag: latest
   pullPolicy: IfNotPresent
 
-# imagePullSecrets attached to the controller-manager pod for pulling the
-# manager and (when enabled) kube-rbac-proxy images from private registries.
+# imagePullSecrets attached to the controller-manager ServiceAccount, so any
+# pod using it (manager and, when enabled, the kube-rbac-proxy sidecar) can
+# pull images from private registries.
 # Example:
 #   imagePullSecrets:
 #     - name: regcred
