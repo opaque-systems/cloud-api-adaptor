@@ -9,6 +9,10 @@ metadata:
     app.kubernetes.io/part-of: peerpods-webhook
   name: {{ .Values.namePrefix }}controller-manager
   namespace: {{ .Values.namespaceOverride | default .Release.Namespace }}
+{{- with .Values.imagePullSecrets }}
+imagePullSecrets:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

@@ -18,6 +18,14 @@ image:
   tag: 61b1aba91df646a663e60ab6b55c6a7dc93cd167
   pullPolicy: IfNotPresent
 
+# imagePullSecrets attached to the controller-manager ServiceAccount, so any
+# pod using it (the webhook manager and, when enabled, the kube-rbac-proxy
+# sidecar) can pull images from a private registry.
+# Example:
+#   imagePullSecrets:
+#     - name: regcred
+imagePullSecrets: []
+
 # Manager container resource limits and requests
 resources:
   limits:
