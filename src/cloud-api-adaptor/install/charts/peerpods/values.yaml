@@ -82,7 +82,14 @@ image:
   name: quay.io/confidential-containers/cloud-api-adaptor
   tag: "2274f17ad298088eeefa20fe4b3a58a350ceab4e"
 
-# Cloud provider: libvirt, aws, azure, gcp, ibmcloud, vsphere
+# imagePullSecrets attached to the cloud-api-adaptor ServiceAccount, so any
+# pod using it (the CAA DaemonSet) can pull images from a private registry.
+# Example:
+#   imagePullSecrets:
+#     - name: regcred
+imagePullSecrets: []
+
+# Cloud provider: libvirt, aws, azure, byom, gcp, ibmcloud, vsphere
 provider: libvirt
 
 # Maximum number of peer pods allowed to run simultaneously

@@ -9,6 +9,10 @@ metadata:
     app.kubernetes.io/part-of: peerpodctrl
   name: {{ .Values.namePrefix }}controller-manager
   namespace: {{ .Release.Namespace }}
+{{- with .Values.imagePullSecrets }}
+imagePullSecrets:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

@@ -7,6 +7,14 @@ image:
   tag: latest
   pullPolicy: IfNotPresent
 
+# imagePullSecrets attached to the controller-manager ServiceAccount, so any
+# pod using it (manager and, when enabled, the kube-rbac-proxy sidecar) can
+# pull images from private registries.
+# Example:
+#   imagePullSecrets:
+#     - name: regcred
+imagePullSecrets: []
+
 # kube-rbac-proxy: Sidecar container that protects the /metrics endpoint with RBAC authentication
 # When enabled, only authenticated clients with proper RBAC permissions can access metrics
 # Set to false to expose metrics without authentication (not recommended for production)
