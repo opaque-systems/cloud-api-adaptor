@@ -76,6 +76,10 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	@sed -i '/  name: mwebhook.peerpods.io/a\  namespaceSelector:\n    matchExpressions:\n    - key: kubernetes.io/metadata.name\n      operator: NotIn\n      values:\n      - {{ .Values.namespaceOverride | default .Release.Namespace }}\n      - kube-system' chart/templates/webhook-config.yaml
 	# Add scope to rules (equivalent to inline scope patch in kustomization.yaml)
 	@sed -i '/    - pods/a\    scope: Namespaced' chart/templates/webhook-config.yaml
+	# Add caBundle field (no kubebuilder marker for this;
+	# required when certManager.enabled=false so the apiserver knows which
+	# CA signed the webhook's serving cert).
+	@sed -i '/      path: \/mutate-v1-pod/a\{{- if .Values.webhook.caBundle }}\n    caBundle: {{ .Values.webhook.caBundle }}\n{{- end }}' chart/templates/webhook-config.yaml
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
