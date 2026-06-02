@@ -173,3 +173,5 @@ kata-deploy:
       enabled: false
     remote:
       enabled: true
+      containerd:
+        snapshotter: "overlayfs"
