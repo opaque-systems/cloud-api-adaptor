@@ -16,8 +16,8 @@ on:
   # triggering this workflow).
   pull_request_target:
     types:
-      # This workflow will be run if the pull request is labeled test_e2e_libvirt, or
-      # test_e2e_docker, so adding 'labeled' to the list of activity types.
+      # This workflow will be run if the pull request is labeled test_e2e_libvirt,
+      # so adding 'labeled' to the list of activity types.
       #
       - opened
       - synchronize
@@ -34,11 +34,11 @@ permissions: {}
 
 jobs:
   authorize:
+    name: authorize
     runs-on: ubuntu-24.04
     if: |
      contains(github.event.pull_request.labels.*.name, 'test_e2e_aws') ||
      contains(github.event.pull_request.labels.*.name, 'test_e2e_libvirt') ||
-     contains(github.event.pull_request.labels.*.name, 'test_e2e_docker') ||
      contains(github.event.pull_request.labels.*.name, 'test_e2e_byom')
     steps:
       - run: "true"
@@ -51,11 +51,11 @@ jobs:
       podvm_image_tag: ci-pr${{ github.event.number }}
       registry: ghcr.io/${{ github.repository_owner }}
     permissions:
-      id-token: write
-      contents: read
-      packages: write
-      attestations: write
-      artifact-metadata: write
+      id-token: write  # Required for OIDC authentication
+      contents: read  # Required to checkout code
+      packages: write  # Required to push container images
+      attestations: write  # Required to write attestations
+      artifact-metadata: write  # Required to write artifact metadata
     secrets:
       AWS_IAM_ROLE_ARN: ${{ secrets.AWS_IAM_ROLE_ARN }}
       QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}

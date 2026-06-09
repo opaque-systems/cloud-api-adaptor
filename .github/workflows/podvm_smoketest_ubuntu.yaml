@@ -16,7 +16,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: src/cloud-api-adaptor/podvm-mkosi
+        working-directory: src/cloud-api-adaptor/podvm
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -49,10 +49,10 @@ jobs:
           version: ${{ env.ORAS_VERSION }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 
       - name: Build binaries
-        run: make binaries
+        run: make podvm-binaries
         env:
           PODVM_DISTRO: ubuntu
 
@@ -71,7 +71,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: podvm-build-ubuntu
-          path: src/cloud-api-adaptor/podvm-mkosi/build/podvm-ubuntu-amd64.qcow2
+          path: src/cloud-api-adaptor/podvm/build/podvm-ubuntu-amd64.qcow2
 
   test:
     name: Test the image
@@ -83,9 +83,9 @@ jobs:
     strategy:
       matrix:
         test-mode:
-          - name: podvm-mkosi-ubuntu
+          - name: podvm-ubuntu
             mode: basic
-          - name: podvm-mkosi-with-scratch-space-ubuntu
+          - name: podvm-with-scratch-space-ubuntu
             mode: scratch-space
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -106,8 +106,8 @@ jobs:
         run: |
           {
             echo "ORAS_VERSION=$(./hack/versions.py -q tools.oras)";
-            echo "KATA_AGENT_CTL_REF=$(./hack/versions.py -q oci.kata-agent-ctl.reference)";
-            echo "KATA_AGENT_CTL_REG=$(./hack/versions.py -q oci.kata-agent-ctl.registry)";
+            echo "KATA_REF=$(./hack/versions.py -q oci.kata-containers.reference)";
+            echo "KATA_REG=$(./hack/versions.py -q oci.kata-containers.registry)";
           } >> "$GITHUB_ENV"
 
       - uses: oras-project/setup-oras@38de303aac69abb66f3e6255b7198bff35f323e3 # v2.0.0
@@ -116,7 +116,7 @@ jobs:
 
       - name: Install kata-agent-ctl
         run: |
-          oras pull "${KATA_AGENT_CTL_REG}/agent-ctl:${KATA_AGENT_CTL_REF}-x86_64"
+          oras pull "${KATA_REG}/agent-ctl:${KATA_REF}-x86_64"
           tar --zstd -xf kata-static-agent-ctl.tar.zst
           cp opt/kata/bin/kata-agent-ctl /usr/local/bin
 
