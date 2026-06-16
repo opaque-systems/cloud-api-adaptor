@@ -339,14 +339,25 @@ func (p *gcpProvider) CreateInstance(ctx context.Context, podName, sandboxID str
 	}
 
 	networkInterface := &computepb.NetworkInterface{
-		Network: proto.String(p.serviceConfig.Network),
-		AccessConfigs: []*computepb.AccessConfig{
+		Network:   proto.String(p.serviceConfig.Network),
+		StackType: proto.String("IPV4_Only"),
+	}
+	// Only attach an AccessConfig (which causes GCE to allocate an
+	// ephemeral external IP) when the operator opted in via
+	// UsePublicIP. Confidential-Computing peer-pods generally must
+	// live VPC-internal-only — customers will not trust a build that
+	// silently exposes every PodVM to the public internet, even if
+	// CAA itself never uses that IP for connectivity (it uses the
+	// internal IP per getIPs() below). The prior code attached the
+	// AccessConfig unconditionally, which created the IP regardless
+	// of UsePublicIP.
+	if p.serviceConfig.UsePublicIP {
+		networkInterface.AccessConfigs = []*computepb.AccessConfig{
 			{
 				Name:        proto.String("External NAT"),
 				NetworkTier: proto.String("STANDARD"),
 			},
-		},
-		StackType: proto.String("IPV4_Only"),
+		}
 	}
 	if subnetworkValue != nil {
 		networkInterface.Subnetwork = subnetworkValue
