@@ -18,6 +18,14 @@ image:
   tag: latest
   pullPolicy: IfNotPresent
 
+# imagePullSecrets attached to the controller-manager ServiceAccount, so any
+# pod using it (the webhook manager and, when enabled, the kube-rbac-proxy
+# sidecar) can pull images from a private registry.
+# Example:
+#   imagePullSecrets:
+#     - name: regcred
+imagePullSecrets: []
+
 # Manager container resource limits and requests
 resources:
   limits:
@@ -35,6 +43,14 @@ webhook:
   podVMExtendedResource: kata.peerpods.io/vm
   # Webhook failure policy: Fail or Ignore
   failurePolicy: Fail
+  # CA bundle (base64-encoded PEM, single-line) that the apiserver uses
+  # to verify the webhook's TLS cert. Required when certManager.enabled
+  # is false — without it the apiserver has no trust anchor for the
+  # webhook's self-signed cert and admission calls fail. When empty the
+  # `caBundle:` field is omitted from the rendered
+  # MutatingWebhookConfiguration entirely, so cert-manager flows
+  # (annotation-driven ca-injector) keep working unchanged.
+  caBundle: ""
 
 # kube-rbac-proxy: Sidecar container that protects the /metrics endpoint with RBAC authentication
 # When enabled, only authenticated clients with proper RBAC permissions can access metrics

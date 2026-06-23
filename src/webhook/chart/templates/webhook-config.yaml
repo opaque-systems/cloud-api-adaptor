@@ -16,6 +16,9 @@ webhooks:
       name: {{ .Values.namePrefix }}webhook-service
       namespace: {{ .Values.namespaceOverride | default .Release.Namespace }}
       path: /mutate-v1-pod
+{{- if .Values.webhook.caBundle }}
+    caBundle: {{ .Values.webhook.caBundle }}
+{{- end }}
   failurePolicy: {{ .Values.webhook.failurePolicy }}
   name: mwebhook.peerpods.io
   namespaceSelector:
