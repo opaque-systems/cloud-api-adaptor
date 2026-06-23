@@ -4,6 +4,7 @@ After=process-user-data.service
 
 [Service]
 Type=oneshot
+RemainAfterExit=yes
 ExecStart=/usr/local/bin/extend-rtmr3.sh
 
 [Install]

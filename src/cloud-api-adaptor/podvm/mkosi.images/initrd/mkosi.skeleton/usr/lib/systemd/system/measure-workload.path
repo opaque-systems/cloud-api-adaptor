@@ -2,7 +2,7 @@
 Description=Measures the intidata digest into RTMR3
 
 [Path]
-PathChanged=/var/run/peerpod/initdata.digest
+PathExists=/var/run/peerpod/initdata.digest
 Unit=measure-workload.service
 
 [Install]
