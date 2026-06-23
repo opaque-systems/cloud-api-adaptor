@@ -9,6 +9,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -16,9 +17,15 @@ import (
 	restclient "k8s.io/client-go/rest"
 )
 
-// AdvertiseExtendedResources sets up extended resources for the node
-func AdvertiseExtendedResources(peerPodsLimitPerNode int) error {
+// Signaling this channel causes the goroutine that advertises extended
+// resources to stop.
+var advertiseStopChan = make(chan struct{})
 
+// The goroutine that advertises extended resources signals this channel when it
+// exits.
+var advertiseStopOnce = make(chan struct{})
+
+func advertiseExtendedResources(peerPodsLimitPerNode int) error {
 	logger.Printf("set up extended resources")
 
 	if peerPodsLimitPerNode < 0 {
@@ -52,10 +59,43 @@ func AdvertiseExtendedResources(peerPodsLimitPerNode int) error {
 	return nil
 }
 
+// AdvertiseExtendedResources sets up extended resources for the node
+func AdvertiseExtendedResources(peerPodsLimitPerNode int) {
+	doAdvertise := func() {
+		err := advertiseExtendedResources(peerPodsLimitPerNode)
+		if err != nil {
+			logger.Printf("Failed to advertise extended resources: %v", err)
+		}
+	}
+
+	go func() {
+		doAdvertise()
+
+		t := time.NewTicker(5 * time.Minute)
+
+	loop:
+		for {
+			select {
+			case <-t.C:
+				doAdvertise()
+			case <-advertiseStopChan:
+				logger.Printf("Stopping advertise extended resources")
+				break loop
+			}
+		}
+
+		advertiseStopOnce <- struct{}{}
+	}()
+}
+
 // Patch the status of a node to remove extended resources
 func RemoveExtendedResources() error {
-
 	logger.Printf("remove extended resources")
+
+	// Stop the goroutine that advertises extended resources, and wait for it to
+	// actually finish.
+	advertiseStopChan <- struct{}{}
+	<-advertiseStopOnce
 
 	nodeName := os.Getenv("NODE_NAME")
 
