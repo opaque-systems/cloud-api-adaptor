@@ -35,8 +35,6 @@ func StartupHandler(w http.ResponseWriter, r *http.Request) {
 		podsReadizProbesDone = ret
 		if err != nil || !podsReadizProbesDone {
 			logger.Printf("Not all PeerPods ready, because %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
 		}
 	}
 	logger.Printf("All PeerPods standup. we do not check the PeerPods status any more.")
