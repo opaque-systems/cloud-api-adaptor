@@ -28,7 +28,14 @@ function setup_proxy_arp() {
 
   ip link set veth2 netns podns
   ip netns exec podns ip link set up dev veth2
-  ip netns exec podns ip route add "$IMDS_IP/32" dev veth2
+
+  dmi="/sys/class/dmi/id/product_name"
+  [ -r "$dmi" ] && vendor=$(cat "$dmi" 2>/dev/null)
+  if echo "$vendor" | grep -qi "Google"; then
+    echo "GCP, skip adding route for IMDS ..."
+  else
+    ip netns exec podns ip route add "$IMDS_IP/32" dev veth2
+  fi
 
   ip route add "$pod_ip/32" dev veth1
 

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euxo pipefail
+
 RTMR3="/sys/devices/virtual/misc/tdx_guest/measurements/rtmr3:sha384"
 
 if [ -f $RTMR3 ]; then
