@@ -36,3 +36,6 @@ else
 	systemctl enable process-user-data.service
 	# These units doesn't exist in regular and debug profiles
 fi
+
+systemctl disable measure-workload.service
+systemctl enable measure-workload.path

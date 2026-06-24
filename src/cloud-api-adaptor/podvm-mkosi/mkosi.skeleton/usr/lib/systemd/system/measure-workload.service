@@ -1,0 +1,11 @@
+[Unit]
+Description=Measures the intidata digest into RTMR3
+After=process-user-data.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/extend-rtmr3.sh
+
+[Install]
+WantedBy=multi-user.target
