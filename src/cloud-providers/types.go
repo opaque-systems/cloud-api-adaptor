@@ -20,6 +20,29 @@ type Provider interface {
 	ConfigVerifier() error
 }
 
+// ImagePullAuthAugmenter is an optional interface a Provider may
+// implement to contribute registry credentials derived from its own
+// cloud identity into the auth.json shipped to the podvm at create
+// time.
+//
+// The base flow (pod.spec.imagePullSecrets -> auth.json -> CDH) only
+// works when the operator supplies a usable Secret. Some clouds can do
+// better: the CAA daemonset already runs under a cloud-managed identity
+// (e.g. GKE Workload Identity on GCP) that can mint a short-lived
+// registry token without any operator-supplied secret. Providers with
+// such a mechanism implement this interface; the returned bytes are a
+// docker-config-json document that the caller merges with the
+// operator's imagePullSecrets before writing /run/peerpod/auth.json.
+//
+// Implementations must return (nil, nil) when the feature is disabled by
+// configuration, so callers can treat "unsupported" and "configured
+// off" identically. Errors are non-fatal at the call site: a failed
+// augmentation falls back to the operator-supplied imagePullSecrets (or
+// no auth at all, as before).
+type ImagePullAuthAugmenter interface {
+	AugmentImagePullAuth(ctx context.Context) ([]byte, error)
+}
+
 // keyValueFlag represents a flag of key-value pairs
 type KeyValueFlag map[string]string
 

@@ -34,6 +34,17 @@ type gcpProvider struct {
 }
 
 func (p *gcpProvider) ConfigVerifier() error {
+	// PullImpersonate without PullRegistry is a no-op that silently
+	// disables the feature -- almost certainly a misconfiguration, so
+	// fail fast rather than ship podvms with no registry auth.
+	if p.serviceConfig.PullImpersonate != "" && p.serviceConfig.PullRegistry == "" {
+		return fmt.Errorf("GCP_PULL_IMPERSONATE is set but GCP_PULL_REGISTRY is empty; set the registry host or unset the impersonation target")
+	}
+	// PullRegistry must be a bare registry host (used as a docker
+	// auth.json key), not a full image reference.
+	if h := p.serviceConfig.PullRegistry; h != "" && strings.ContainsAny(h, "/@") {
+		return fmt.Errorf("GCP_PULL_REGISTRY must be a registry hostname (e.g. us-central1-docker.pkg.dev), got %q", h)
+	}
 	return nil
 }
 
