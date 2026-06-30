@@ -24,6 +24,10 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+{{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
       containers:
 {{- if .Values.authProxy.enabled }}
       - name: kube-rbac-proxy

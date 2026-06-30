@@ -12,6 +12,8 @@ namespaceOverride: "peer-pods-webhook-system"
 # Webhook deployment configuration
 replicas: 2
 
+tolerations: []
+
 # Webhook image
 image:
   repository: quay.io/confidential-containers/peer-pods-webhook

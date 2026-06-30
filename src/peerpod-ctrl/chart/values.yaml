@@ -35,3 +35,5 @@ podLabels: {}
 # to the cloud provider.
 serviceAccount:
   annotations: {}
+
+tolerations: []

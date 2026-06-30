@@ -41,6 +41,10 @@ spec:
                 operator: In
                 values:
                 - linux
+{{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+{{- end }}
       containers:
 {{- if .Values.authProxy.enabled }}
       - name: kube-rbac-proxy
