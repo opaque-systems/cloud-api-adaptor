@@ -501,3 +501,44 @@ func TestSwap(t *testing.T) {
 		assert.Equal(t, tt.out, swapTagForDigest(tt.in, "sha256:abc123"))
 	}
 }
+
+func TestDigestForImageRef(t *testing.T) {
+	digests := map[string]string{
+		"nginx:1.27-alpine":                                                     "nginx@sha256:abc",
+		"nginx@sha256:abc":                                                       "nginx@sha256:abc",
+		"nginx":                                                                  "nginx@sha256:abc",
+		"myrepo/app:2.0":                                                         "myrepo/app@sha256:def",
+		"myrepo/app@sha256:def":                                                  "myrepo/app@sha256:def",
+	}
+
+	var cases = []struct {
+		ref   string
+		want  string
+		found bool
+	}{
+		// Direct matches.
+		{"nginx:1.27-alpine", "nginx@sha256:abc", true},
+		{"nginx@sha256:abc", "nginx@sha256:abc", true},
+		{"nginx", "nginx@sha256:abc", true},
+
+		// Registry prepended by Kubernetes — one component stripped.
+		{"docker.io/nginx:1.27-alpine", "nginx@sha256:abc", true},
+		{"docker.io/nginx@sha256:abc", "nginx@sha256:abc", true},
+
+		// Registry + namespace prepended — two components stripped.
+		{"docker.io/library/nginx:1.27-alpine", "nginx@sha256:abc", true},
+		{"docker.io/library/nginx@sha256:abc", "nginx@sha256:abc", true},
+
+		// Path-scoped image, one component stripped.
+		{"registry.example.com/myrepo/app:2.0", "myrepo/app@sha256:def", true},
+
+		// No match at any suffix level.
+		{"docker.io/other/image:latest", "", false},
+	}
+
+	for _, tt := range cases {
+		got, ok := digestForImageRef(tt.ref, digests)
+		assert.Equal(t, tt.found, ok, "found mismatch for %q", tt.ref)
+		assert.Equal(t, tt.want, got, "digest mismatch for %q", tt.ref)
+	}
+}

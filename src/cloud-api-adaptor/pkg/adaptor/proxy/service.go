@@ -35,6 +35,8 @@ const (
 	defaultCDIType               = "nvidia.com/gpu=all"
 	defaultGPUsAnnotation        = "io.katacontainers.config.hypervisor.default_gpus"
 	imageDigestsAnnotation       = "io.katacontainers.config.image-digests"
+	imageDigestsModeAnnotation   = "io.katacontainers.config.image-digests-mode"
+	imageDigestsModeByName       = "name"
 )
 
 func newProxyService(dialer func(context.Context) (net.Conn, error), pauseImage string) *proxyService {
@@ -281,20 +283,35 @@ func handleImageGuestPullBlockVolume(containerAnnotations map[string]string, vir
 			return nil, fmt.Errorf("Failed to get image name from annotations")
 		}
 
-		if digestsJSON, digestsOK := containerAnnotations[imageDigestsAnnotation]; digestsOK && digestsJSON != "" && containerName != "" {
+		if digestsJSON, digestsOK := containerAnnotations[imageDigestsAnnotation]; digestsOK && digestsJSON != "" {
 			var digests map[string]string
 			if err := json.Unmarshal([]byte(digestsJSON), &digests); err != nil {
 				return nil, fmt.Errorf("failed to parse %s annotation: %w", imageDigestsAnnotation, err)
 			}
 
-			if digest, ok := digests[containerName]; ok && digest != "" {
+			var digest string
+			var ok bool
+
+			if containerAnnotations[imageDigestsModeAnnotation] == imageDigestsModeByName {
+				digest, ok = digests[containerName]
+			} else {
+				digest, ok = digestForImageRef(imageRef, digests)
+			}
+
+			if ok && digest != "" {
 				bits := strings.Split(digest, "@")
 				if len(bits) != 2 {
-					return nil, fmt.Errorf("invalid digest format for container %s: %s", containerName, digest)
+					return nil, fmt.Errorf("invalid digest format for image %s: %s", imageRef, digest)
 				}
 
-				imageRef = swapTagForDigest(imageRef, bits[1])
+				resolved := swapTagForDigest(imageRef, bits[1])
+				logger.Printf("    replacing image %s with %s for container %s", imageRef, resolved, containerName)
+				imageRef = resolved
+			} else {
+				logger.Printf("    no image replacement found for container %s image %s", containerName, imageRef)
 			}
+		} else {
+			logger.Printf("    no image-digests annotation present, no replacement for container %s image %s", containerName, imageRef)
 		}
 	}
 
@@ -323,6 +340,24 @@ func handleImageGuestPullBlockVolume(containerAnnotations map[string]string, vir
 	vol.Source = virtualVolumeInfo.Source
 	vol.Fstype = "overlay"
 	return vol, nil
+}
+
+// digestForImageRef looks up imageRef in digests, falling back to suffix
+// matching at "/" boundaries to handle registries prepended by Kubernetes that
+// were not present in the original image reference (e.g. imageRef is
+// "docker.io/library/nginx:1.27-alpine" but the map key is "nginx:1.27-alpine").
+func digestForImageRef(imageRef string, digests map[string]string) (string, bool) {
+	ref := imageRef
+	for {
+		if v, ok := digests[ref]; ok {
+			return v, true
+		}
+		idx := strings.Index(ref, "/")
+		if idx < 0 {
+			return "", false
+		}
+		ref = ref[idx+1:]
+	}
 }
 
 // swapTagForDigest returns imageRef with any existing tag or digest replaced by
