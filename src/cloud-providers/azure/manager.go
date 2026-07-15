@@ -40,6 +40,8 @@ func (*Manager) ParseCmd(flags *flag.FlagSet) {
 	reg.BoolWithEnv(&azurecfg.EnableSecureBoot, "enable-secure-boot", false, "ENABLE_SECURE_BOOT", "Enable secure boot for the VMs")
 	reg.BoolWithEnv(&azurecfg.UsePublicIP, "use-public-ip", false, "USE_PUBLIC_IP", "Assign public IP to the PoD VM and use to connect to kata-agent")
 	reg.IntWithEnv(&azurecfg.RootVolumeSize, "root-volume-size", 0, "ROOT_VOLUME_SIZE", "Root volume size in GB. Default is 0, which implies the default image disk size")
+	reg.StringWithEnv(&azurecfg.PullRegistry, "pull-registry", "", "AZURE_PULL_REGISTRY", "Registry hostname (e.g. myregistry.azurecr.io) to authenticate Pod VM image pulls against, using a short-lived ACR refresh token minted from CAA's cloud identity. Empty disables the feature.")
+	reg.StringWithEnv(&azurecfg.PullIdentity, "pull-identity", "", "AZURE_PULL_IDENTITY", "Optional client ID of a user-assigned managed identity to request the image-pull token for; should hold only AcrPull on AZURE_PULL_REGISTRY, and must have its own federated credential trusting CAA's K8s ServiceAccount. Empty mints from CAA's own workload identity.")
 
 	// Custom flag types (comma-separated lists)
 	reg.CustomTypeWithEnv(&azurecfg.InstanceSizes, "instance-sizes", "", "AZURE_INSTANCE_SIZES", "Instance sizes to be used for the Pod VMs, comma separated")

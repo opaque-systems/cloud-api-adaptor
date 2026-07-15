@@ -10,7 +10,6 @@ import (
 	"fmt"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/impersonate"
 	"google.golang.org/api/option"
 )
@@ -33,11 +32,14 @@ type dockerAuthEntry struct {
 	Auth string `json:"auth"`
 }
 
-// AugmentImagePullAuth mints a short-lived OAuth token from CAA's cloud
-// identity (optionally impersonating Config.PullImpersonate) and emits a
-// docker-config-json document that authenticates pulls from
-// Config.PullRegistry as that identity. Implements
-// provider.ImagePullAuthAugmenter.
+// AugmentImagePullAuth mints a short-lived OAuth token by impersonating
+// Config.PullImpersonate and emits a docker-config-json document that
+// authenticates pulls from Config.PullRegistry as that identity.
+// Implements provider.ImagePullAuthAugmenter.
+//
+// ConfigVerifier requires PullImpersonate and PullRegistry to be set
+// together, so there is no "mint from CAA's own identity" fallback
+// here -- see pullTokenSource.
 //
 // Tokens live ~1h. They are shipped into the podvm at create time and
 // consumed by CDH at container-create time, typically seconds after VM
@@ -68,40 +70,27 @@ func (p *gcpProvider) AugmentImagePullAuth(ctx context.Context) ([]byte, error) 
 	})
 }
 
-// pullTokenSource returns the token source used to mint the image-pull
-// token. When PullImpersonate is set it returns an impersonated source
-// (recommended: a least-privilege pull SA); otherwise it returns CAA's
-// own ADC token source. When GCP_CREDENTIALS is configured it is used as
-// the base credential, matching how NewProvider builds the compute
-// client; otherwise Application Default Credentials are used.
+// pullTokenSource returns a token source impersonating Config.PullImpersonate
+// -- a least-privilege pull SA. When GCP_CREDENTIALS is configured it is
+// used as the base credential to impersonate from, matching how
+// NewProvider builds the compute client; otherwise the base credential
+// is Application Default Credentials (CAA's own identity), which
+// impersonate.CredentialsTokenSource uses only to perform the
+// impersonation call itself -- the returned token carries
+// PullImpersonate's authority, not the base credential's.
 func (p *gcpProvider) pullTokenSource(ctx context.Context) (oauth2.TokenSource, error) {
 	var opts []option.ClientOption
 	if p.serviceConfig.GcpCredentials != "" {
 		opts = append(opts, option.WithCredentialsJSON([]byte(p.serviceConfig.GcpCredentials)))
 	}
 
-	if sa := p.serviceConfig.PullImpersonate; sa != "" {
-		ts, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
-			TargetPrincipal: sa,
-			Scopes:          []string{pullAuthScope},
-		}, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("impersonate %s for image-pull token: %w", sa, err)
-		}
-		return ts, nil
-	}
-
-	if p.serviceConfig.GcpCredentials != "" {
-		creds, err := google.CredentialsFromJSON(ctx, []byte(p.serviceConfig.GcpCredentials), pullAuthScope)
-		if err != nil {
-			return nil, fmt.Errorf("image-pull creds from GCP_CREDENTIALS: %w", err)
-		}
-		return creds.TokenSource, nil
-	}
-
-	ts, err := google.DefaultTokenSource(ctx, pullAuthScope)
+	sa := p.serviceConfig.PullImpersonate
+	ts, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
+		TargetPrincipal: sa,
+		Scopes:          []string{pullAuthScope},
+	}, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("image-pull ADC token source: %w", err)
+		return nil, fmt.Errorf("impersonate %s for image-pull token: %w", sa, err)
 	}
 	return ts, nil
 }

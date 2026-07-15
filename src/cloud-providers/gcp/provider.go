@@ -34,11 +34,31 @@ type gcpProvider struct {
 }
 
 func (p *gcpProvider) ConfigVerifier() error {
-	// PullImpersonate without PullRegistry is a no-op that silently
-	// disables the feature -- almost certainly a misconfiguration, so
-	// fail fast rather than ship podvms with no registry auth.
-	if p.serviceConfig.PullImpersonate != "" && p.serviceConfig.PullRegistry == "" {
-		return fmt.Errorf("GCP_PULL_IMPERSONATE is set but GCP_PULL_REGISTRY is empty; set the registry host or unset the impersonation target")
+	// GCP_PULL_REGISTRY and GCP_PULL_IMPERSONATE must be set together.
+	// Leaving both unset is untouched by this check -- that's the
+	// feature being off, same as before it existed (e.g. the static-SA-
+	// key flow at https://confidentialcontainers.org/docs/examples/gcp-simple/,
+	// which never sets either field).
+	//
+	// GCP_PULL_IMPERSONATE without GCP_PULL_REGISTRY is a no-op that
+	// silently disables the feature -- almost certainly a
+	// misconfiguration, so fail fast rather than ship podvms with no
+	// registry auth.
+	//
+	// GCP_PULL_REGISTRY without GCP_PULL_IMPERSONATE used to silently
+	// fall back to minting the pull token from CAA's own identity --
+	// which is usually far more privileged than "read this registry"
+	// (see pullTokenSource). That's a real footgun: enabling the
+	// feature without also naming a least-privilege SA embeds CAA's
+	// full authority into every podvm's auth.json with no warning. Fail
+	// fast instead of shipping that silently.
+	pullRegistrySet := p.serviceConfig.PullRegistry != ""
+	pullImpersonateSet := p.serviceConfig.PullImpersonate != ""
+	if pullRegistrySet != pullImpersonateSet {
+		if pullImpersonateSet {
+			return fmt.Errorf("GCP_PULL_IMPERSONATE is set but GCP_PULL_REGISTRY is empty; set the registry host or unset the impersonation target")
+		}
+		return fmt.Errorf("GCP_PULL_REGISTRY is set but GCP_PULL_IMPERSONATE is empty; set a least-privilege impersonation target (holding only roles/artifactregistry.reader on GCP_PULL_REGISTRY) rather than embedding CAA's own identity into every podvm, or unset GCP_PULL_REGISTRY")
 	}
 	// PullRegistry must be a bare registry host (used as a docker
 	// auth.json key), not a full image reference.
