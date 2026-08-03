@@ -32,18 +32,25 @@ function setup_proxy_arp() {
   dmi="/sys/class/dmi/id/product_name"
   [ -r "$dmi" ] && vendor=$(cat "$dmi" 2>/dev/null)
   if echo "$vendor" | grep -qi "Google"; then
-    echo "GCP, skip adding route for IMDS ..."
+    echo "GCP, routing traffic to IMDS in host to podns ..."
+    ip netns exec podns sysctl -w net.ipv4.ip_forward=1
+    ip netns exec podns sysctl -w net.ipv4.conf.veth2.rp_filter=2
+    ip netns exec podns iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+    ip netns exec podns ip route add ${DUMMY_IP}/32 dev veth2
+
+    ip route add "$pod_ip/32" dev veth1
+    ip route add $IMDS_IP via $pod_ip dev veth1
   else
+    echo "Azure/AWS, routing traffic to IMDS in podns to host"
     ip netns exec podns ip route add "$IMDS_IP/32" dev veth2
+    ip route add "$pod_ip/32" dev veth1
+
+    local hwaddr
+    hwaddr=$(ip netns exec podns ip -br link show veth2 | awk 'NR==1 { print $3 }')
+
+    ip neigh replace "$pod_ip" dev veth1 lladdr "$hwaddr"
+    iptables -t nat -A POSTROUTING -s "$pod_ip/32" -d "$IMDS_IP/32" -j MASQUERADE
   fi
-
-  ip route add "$pod_ip/32" dev veth1
-
-  local hwaddr
-  hwaddr=$(ip netns exec podns ip -br link show veth2 | awk 'NR==1 { print $3 }')
-  ip neigh replace "$pod_ip" dev veth1 lladdr "$hwaddr"
-
-  iptables -t nat -A POSTROUTING -s "$pod_ip/32" -d "$IMDS_IP/32" -j MASQUERADE
 }
 
 # Wait for namespace and network to be available
