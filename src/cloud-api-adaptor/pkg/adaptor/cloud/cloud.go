@@ -269,6 +269,26 @@ func (s *cloudService) CreateVM(ctx context.Context, req *pb.CreateVMRequest) (r
 		// Ignore errors getting secrets to match K8S behavior
 		logger.Printf("error reading image pull secrets: %v", err)
 	}
+
+	// Some providers can mint registry credentials from their own cloud
+	// identity (e.g. GCP via Workload Identity). When the provider
+	// implements ImagePullAuthAugmenter, merge whatever it returns into
+	// the operator-supplied auth.json so podvm pulls work without an
+	// imagePullSecret. Failures are non-fatal: fall back to whatever
+	// imagePullSecrets-derived auth (or none) we already have.
+	if augmenter, ok := s.provider.(provider.ImagePullAuthAugmenter); ok {
+		extraAuth, augErr := augmenter.AugmentImagePullAuth(ctx)
+		if augErr != nil {
+			logger.Printf("warning: image-pull auth augmentation failed: %v", augErr)
+		} else if extraAuth != nil {
+			if merged, mergeErr := mergeDockerAuths(authJSON, extraAuth); mergeErr != nil {
+				logger.Printf("warning: merging provider image-pull auth failed: %v", mergeErr)
+			} else {
+				authJSON = merged
+			}
+		}
+	}
+
 	if authJSON != nil {
 		logger.Printf("successfully retrieved pod image pull secrets for %s/%s", namespace, pod)
 		if len(authJSON) > cloudinit.DefaultAuthfileLimit {
@@ -451,4 +471,39 @@ func (s *cloudService) StopVM(ctx context.Context, req *pb.StopVMRequest) (*pb.S
 	}
 
 	return &pb.StopVMResponse{}, nil
+}
+
+// mergeDockerAuths combines two docker-config-json byte payloads
+// ({"auths": {host: {...}}}) into one document. Entries from right take
+// precedence on host-key conflicts -- the right-hand side is the
+// cloud-provider-derived auth, the freshest material, which should win
+// over any stale imagePullSecret for the same host. Either input may be
+// nil/empty.
+//
+// Per-host entries are preserved verbatim as raw JSON, so fields this
+// code does not model (identitytoken, registrytoken, etc.) survive the
+// merge untouched.
+func mergeDockerAuths(left, right []byte) ([]byte, error) {
+	type doc struct {
+		Auths map[string]json.RawMessage `json:"auths"`
+	}
+
+	merged := doc{Auths: map[string]json.RawMessage{}}
+	for _, src := range [][]byte{left, right} {
+		if len(src) == 0 {
+			continue
+		}
+		var d doc
+		if err := json.Unmarshal(src, &d); err != nil {
+			return nil, fmt.Errorf("unmarshal auths: %w", err)
+		}
+		for host, raw := range d.Auths {
+			merged.Auths[host] = raw
+		}
+	}
+
+	if len(merged.Auths) == 0 {
+		return nil, nil
+	}
+	return json.Marshal(merged)
 }

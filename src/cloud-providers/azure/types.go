@@ -50,6 +50,37 @@ type Config struct {
 	EnableSecureBoot bool
 	UsePublicIP      bool
 	RootVolumeSize   int
+
+	// PullRegistry is the single registry hostname (e.g.
+	// "myregistry.azurecr.io") that podvm image pulls are authenticated
+	// against using a short-lived ACR refresh token minted from CAA's
+	// cloud identity. Empty disables the image-pull-auth feature.
+	//
+	// One refresh token authenticates every repository under that ACR
+	// instance (the docker registry-v2 bearer challenge scopes it down
+	// per-pull), so a single host key is sufficient when all
+	// ACR-hosted images a pod pulls live under one registry. Non-ACR
+	// registries continue to use the operator's imagePullSecrets.
+	PullRegistry string
+
+	// PullIdentity optionally names the client ID of a user-assigned
+	// managed identity to request the AAD token for, instead of CAA's
+	// own identity. The recommended configuration is a dedicated,
+	// least-privilege identity holding only AcrPull on PullRegistry:
+	// the minted refresh token is embedded in the guest's auth.json, so
+	// it should carry no more authority than reading the registry.
+	//
+	// Unlike GCP's service-account impersonation, Azure Workload
+	// Identity has no "impersonate any identity you hold a role on"
+	// primitive: PullIdentity's managed identity must have its own
+	// federated credential trusting CAA's K8s ServiceAccount (the same
+	// OIDC issuer + subject CAA's own identity is federated to).
+	//
+	// If empty, the token is minted directly from CAA's own workload
+	// identity. That is only safe when CAA's identity is itself
+	// low-privilege; if it can manage VMs, do NOT use this path, as it
+	// embeds a token with CAA's full authority into every podvm.
+	PullIdentity string
 }
 
 func (c Config) Redact() Config {

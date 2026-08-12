@@ -33,6 +33,8 @@ func (*Manager) ParseCmd(flags *flag.FlagSet) {
 	reg.StringWithEnv(&gcpcfg.ConfidentialType, "confidential-type", "", "GCP_CONFIDENTIAL_TYPE", "Used when DisableCVM=false. i.e: TDX, SEV or SEV_SNP. Check if the machine type is compatible.")
 	reg.IntWithEnv(&gcpcfg.RootVolumeSize, "root-volume-size", 10, "ROOT_VOLUME_SIZE", "Root volume size (in GiB) for the Pod VMs")
 	reg.BoolWithEnv(&gcpcfg.UsePublicIP, "use-public-ip", false, "USE_PUBLIC_IP", "Use Public IP for connecting to the kata-agent inside the Pod VM")
+	reg.StringWithEnv(&gcpcfg.PullRegistry, "pull-registry", "", "GCP_PULL_REGISTRY", "Registry hostname (e.g. us-central1-docker.pkg.dev) to authenticate Pod VM image pulls against, using a short-lived OAuth token minted from CAA's cloud identity. Empty disables the feature.")
+	reg.StringWithEnv(&gcpcfg.PullImpersonate, "pull-impersonate", "", "GCP_PULL_IMPERSONATE", "Optional service account to impersonate when minting the image-pull token; should hold only roles/artifactregistry.reader on GCP_PULL_REGISTRY. CAA's identity must hold roles/iam.serviceAccountTokenCreator on it. Empty mints from CAA's own ADC identity.")
 
 	// Custom flag types (comma-separated lists)
 	reg.CustomTypeWithEnv(&gcpcfg.Tags, "tags", "", "TAGS", "List of tags to be added to the Pod VMs. Tags must already exist in the GCP project. Format: key1=value1,key2=value2")

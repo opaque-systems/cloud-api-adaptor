@@ -360,6 +360,36 @@ func (p *azureProvider) ConfigVerifier() error {
 			return fmt.Errorf("SSH key is invalid: %s", err)
 		}
 	}
+
+	// AZURE_PULL_REGISTRY and AZURE_PULL_IDENTITY must be set together.
+	// Leaving both unset is untouched by this check -- that's the
+	// feature being off, same as before it existed.
+	//
+	// AZURE_PULL_IDENTITY without AZURE_PULL_REGISTRY is a no-op that
+	// silently disables the feature -- almost certainly a
+	// misconfiguration, so fail fast rather than ship podvms with no
+	// registry auth.
+	//
+	// AZURE_PULL_REGISTRY without AZURE_PULL_IDENTITY used to silently
+	// fall back to minting the pull token from CAA's own identity --
+	// which is usually far more privileged than "read this registry"
+	// (see pullTokenCredential). That's a real footgun: enabling the
+	// feature without also naming a least-privilege identity embeds
+	// CAA's full authority into every podvm's auth.json with no
+	// warning. Fail fast instead of shipping that silently.
+	pullRegistrySet := p.serviceConfig.PullRegistry != ""
+	pullIdentitySet := p.serviceConfig.PullIdentity != ""
+	if pullRegistrySet != pullIdentitySet {
+		if pullIdentitySet {
+			return fmt.Errorf("AZURE_PULL_IDENTITY is set but AZURE_PULL_REGISTRY is empty; set the registry host or unset the impersonation target")
+		}
+		return fmt.Errorf("AZURE_PULL_REGISTRY is set but AZURE_PULL_IDENTITY is empty; set a least-privilege managed identity (holding only AcrPull on AZURE_PULL_REGISTRY, with its own federated credential trusting CAA's K8s ServiceAccount) rather than embedding CAA's own identity into every podvm, or unset AZURE_PULL_REGISTRY")
+	}
+	// PullRegistry must be a bare registry host (used as a docker
+	// auth.json key), not a full image reference.
+	if h := p.serviceConfig.PullRegistry; h != "" && strings.ContainsAny(h, "/@") {
+		return fmt.Errorf("AZURE_PULL_REGISTRY must be a registry hostname (e.g. myregistry.azurecr.io), got %q", h)
+	}
 	return nil
 }
 
