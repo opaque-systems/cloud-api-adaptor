@@ -9,3 +9,7 @@ enable setup-nat-for-imds.service
 enable gen-issue.service
 enable image-env.service
 enable scratch-storage.path
+
+# Extend RTMR3 with the initdata digest once process-user-data writes it.
+enable measure-workload.path
+disable measure-workload.service
