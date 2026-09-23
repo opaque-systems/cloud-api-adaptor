@@ -194,6 +194,8 @@ kata-deploy:
     s390x: remote
     ppc64le: remote
   shims:
+    # kata-deploy 4.0.0 enables unlisted shims by default; keep only those enabled here.
+    disableAll: true
     clh:
       enabled: false
     cloud-hypervisor:
